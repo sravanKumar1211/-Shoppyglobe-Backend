@@ -11,7 +11,7 @@ router.post("/cart",verifyToken,addToCart);
   //updates quantity of product in cart for user with token access
 router.put("/cart/:productId",verifyToken,updateCart);
  //remove product from cart for user with token access
-    router.delete("/api/cart/:productId",verifyToken,removeProduct);
+    router.delete("/cart/:productId",verifyToken,removeProduct);
       //to get all products in cart for user with token access
     router.get("/cart",verifyToken,getCart);
 

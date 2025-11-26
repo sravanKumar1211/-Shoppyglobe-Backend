@@ -2,57 +2,92 @@ import User from "../models/User.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-export async function register(req,res) {
-    try{
-        // console.log("infunction");
-        const {name,email,password}=req.body;//get field data from body
-        if(!name || !email ||!password) //if any fields data missing return
-            return res.status(400).json({"message":"Missing fields"});
-        //console.log(name,email,password);//find if user exists
-        const exists=await User.findOne({email});
-        //console.log(exists);
-        if(exists) //if exists then return 
-            return res.status(400).json({message:"Email already in use"});
-        //create new user with given data of each fields
-        const newUser=await User.create({name,email,
-            password:bcrypt.hashSync(password,12),//hash password when sent to database so it won't be easy to guess
-            //second parameter is saltrounds means how many times it is hashed
-        });
-       // console.log(newUser);//send result of created user
-        res.status(201).json({newUser});
-    }//error occured during register goes to catch block
-    catch(err){
-        return res.status(500).json({"error occured during registering user":err.message});
-    }
-    
+// 📌 Helper Email Validation (Regex)
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export async function login(req,res) {
-    try{
-        const {email,password}=req.body;//get field data from body
-        if(!email ||!password)//if any data missing then return
-            return res.status(400).json({"message":"Missing fields"});
-        //find user with given details
-        const exists=await User.findOne({email});
-        if(!exists)//if user is not registered then return
-            return res.status(401).json({message:"User does not exist"});
-        //compare hashed password with typed password 
-        let validPassword=bcrypt.compareSync(password,exists.password);
-        if(!validPassword){ //if not matched then wrong password
-            return res.status(401).json({"message":"Invalid user details"});
-        }
-        //create token with data, secret key, access to it expiresIn
-        let token=jwt.sign({id:exists.id},"SECRETKEY",{expiresIn:"10d"});
-        //return user details as response with token 
-        return res.status(200).json({
-            user:{
-                name:exists.name,
-                email:exists.email
-            },
-            accessToken:token,
-        });
-    }//error during login goes to catch block
-    catch(err){
-        return res.status(500).json({"error occured during login":err.message});
-    }
+// ======================= REGISTER =======================
+export async function register(req, res) {
+  try {
+    const { name, email, password } = req.body;
+
+    // 🔎 Check required fields
+    if (!name || !email || !password)
+      return res.status(400).json({ message: "All fields are required" });
+
+    // 📌 Validate email format
+    if (!isValidEmail(email))
+      return res.status(400).json({ message: "Invalid email address" });
+
+    // 🔎 Check if user already exists
+    const exists = await User.findOne({ email });
+    if (exists)
+      return res.status(409).json({ message: "Email already in use" }); // 409 Conflict
+
+    // 🔐 Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // 🆕 Create user
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+    });
+
+    // 📤 Send response (Don't send password!)
+    res.status(201).json({
+      message: "User registered successfully",
+      user: {
+        name: newUser.name,
+        email: newUser.email,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error: " + err.message });
+  }
+}
+
+// ======================= LOGIN =======================
+export async function login(req, res) {
+  try {
+    const { email, password } = req.body;
+
+    // 🔎 Check required fields
+    if (!email || !password)
+      return res.status(400).json({ message: "Email and password are required" });
+
+    // 📌 Validate email format
+    if (!isValidEmail(email))
+      return res.status(400).json({ message: "Invalid email address" });
+
+    // 🔎 Find user
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(404).json({ message: "User does not exist" });
+
+    // 🔐 Compare passwords
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword)
+      return res.status(401).json({ message: "Incorrect password" });
+
+    // 🔑 Generate token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET || "SECRETKEY",
+      { expiresIn: "10d" }
+    );
+
+    // 📤 Send response
+    return res.status(200).json({
+      message: "Login successful",
+      user: {
+        name: user.name,
+        email: user.email,
+      },
+      accessToken: token,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error: " + err.message });
+  }
 }
