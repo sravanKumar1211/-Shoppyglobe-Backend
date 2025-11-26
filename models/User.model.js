@@ -1,33 +1,40 @@
 import mongoose from "mongoose";
 
-// User schema
+// ---------------------------------------------
+// USER SCHEMA DEFINITION
+// ---------------------------------------------
 const userSchema = new mongoose.Schema(
   {
+    // User full name
     name: { type: String, required: true, trim: true },
 
+    // Unique user email with validation
     email: {
       type: String,
       required: true,
-      unique: true,
+      unique: true,         // No two users can have same email
       trim: true,
-      lowercase: true,
+      lowercase: true,      // Store email in lowercase
       validate: {
+        // Validate correct email format using regex
         validator: function (value) {
-          // ✔ Email format validation (regex)
           return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
         },
         message: "Please enter a valid email address"
       }
     },
 
+    // User password (stored as hashed in DB usually)
     password: {
       type: String,
       required: true,
-      minlength: [6, "Password must be at least 6 characters"]
+      minlength: [6, "Password must be at least 6 characters"] // Minimum security
     }
   },
-  { timestamps: true }
+  { timestamps: true } // Adds createdAt & updatedAt automatically
 );
 
-// Creates user collection in database
+// ---------------------------------------------
+// CREATE & EXPORT USER MODEL
+// ---------------------------------------------
 export default mongoose.model("User", userSchema);
